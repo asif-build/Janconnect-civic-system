@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -50,7 +51,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'pcrm.urls'
+ROOT_URLCONF = 'janconnect.urls'
 
 TEMPLATES = [
     {
@@ -67,7 +68,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'pcrm.wsgi.application'
+WSGI_APPLICATION = 'janconnect.wsgi.application'
 
 
 # Database
@@ -75,8 +76,12 @@ WSGI_APPLICATION = 'pcrm.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'janconnect_db',      # your database name
+        'USER': 'root',               # your MySQL username
+        'PASSWORD': 'yourpassword',   # your MySQL password
+        'HOST': 'localhost',
+        'PORT': '3306',
     }
 }
 
@@ -116,3 +121,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+LOGIN_URL = '/'
+LOGIN_REDIRECT_URL = '/dashboard/'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

@@ -1,0 +1,20 @@
+{% load static %}
+
+<h2>Submit Complaint</h2>
+
+<input type="text" id="name" placeholder="Name">
+<input type="text" id="phone" placeholder="Phone">
+<input type="text" id="area" placeholder="Area">
+<textarea id="description" placeholder="Description"></textarea>
+
+<select id="category">
+    <option value="Infrastructure">Infrastructure</option>
+    <option value="Healthcare">Healthcare</option>
+    <option value="Water & Utilities">Water & Utilities</option>
+    <option value="Sanitation">Sanitation</option>
+    <option value="Other">Other</option>
+</select>
+
+<button onclick="submitComplaint()">Submit</button>
+
+<script src="{% static 'complaints/js/main.js' %}"></script>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - JanConnect</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/tsparticles@2/tsparticles.bundle.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;   /* horizontal center */
+            align-items: center;       /* vertical center */
+            font-family: Arial, sans-serif;
+            background-color: #0f172a;
+            overflow: hidden;
+        }
+
+        #tsparticles {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .login-box {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 10px;
+            width: 300px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1e40af;
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="tsparticles"></div>
+
+<div class="login-box">
+    <h2>Login</h2>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST">
+        {% csrf_token %}
+        <input type="text" name="username" placeholder="Username" required>
+        <input type="password" name="password" placeholder="Password" required>
+        <button type="submit">Login</button>
+    </form>
+</div>
+
+<script>
+tsParticles.load("tsparticles", {
+  particles: {
+    number: { value: 100 },
+    size: { value: 3 },
+    move: { enable: true, speed: 1 },
+    color: { value: "#FF9FFC" },
+    links: { enable: true, color: "#FF9FFC" }
+  },
+  background: { color: "#0f172a" }
+});
+</script>
+
+</body>
+</html>
