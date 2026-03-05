@@ -1,6 +1,7 @@
 from django.contrib import admin
-from .models import Complaint
+from .models import Complaint, Department, Area, Officer
 
 admin.site.register(Complaint)
-
-# Register your models here.
+admin.site.register(Department)
+admin.site.register(Area)
+admin.site.register(Officer)

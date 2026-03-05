@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}JanConnect{% endblock %}</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family: "Segoe UI", sans-serif;
+}
+
+body{
+    display:flex;
+    background:#f4f6f9;
+}
+
+/* SIDEBAR */
+.sidebar{
+    width:250px;
+    height:100vh;
+    background:#1e293b;
+    color:white;
+    padding:25px 20px;
+    position:fixed;
+}
+
+.sidebar h2{
+    margin-bottom:40px;
+}
+
+.sidebar a{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    color:#cbd5e1;
+    text-decoration:none;
+    padding:12px 15px;
+    border-radius:8px;
+    margin-bottom:10px;
+    transition:0.3s;
+}
+
+.sidebar a:hover,
+.sidebar a.active{
+    background:#334155;
+    color:white;
+}
+
+.logout{
+    color:#ef4444;
+}
+
+/* MAIN */
+.main{
+    margin-left:250px;
+    width:100%;
+    padding:30px;
+}
+
+.topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:30px;
+}
+</style>
+
+{% block extra_css %}{% endblock %}
+
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <h2>JanConnect</h2>
+
+    <a href="{% url 'dashboard' %}"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+    <a href="{% url 'add_page' %}"><i class="fa-solid fa-plus"></i> Add Complaint</a>
+    <a href="#"><i class="fa-solid fa-list"></i> All Complaints</a>
+    <a href="#"><i class="fa-solid fa-user"></i> Profile</a>
+
+    <a href="{% url 'account_logout' %}" class="logout">
+        <i class="fa-solid fa-right-from-bracket"></i> Logout
+    </a>
+</div>
+
+<div class="main">
+
+    <div class="topbar">
+        <h2>{% block page_title %}{% endblock %}</h2>
+        <div>
+            <i class="fa-solid fa-user-circle"></i>
+            {{ request.user.username }}
+        </div>
+    </div>
+
+    {% block content %}{% endblock %}
+
+</div>
+
+{% block extra_js %}{% endblock %}
+
+</body>
+</html>

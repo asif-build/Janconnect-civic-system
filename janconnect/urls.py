@@ -24,6 +24,7 @@ urlpatterns = [
 
     # Make login page default
     path('', include('complaints.urls')),
+    path('accounts/', include('allauth.urls')), # For social auth
 ]
 
 # Serve media files in development

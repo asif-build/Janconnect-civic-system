@@ -1,6 +1,41 @@
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
+from django.db import models
+from django.contrib.auth.models import User
+
+
+class Department(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+
+    def __str__(self):
+        return self.name
+
+
+class Area(models.Model):
+
+    name = models.CharField(max_length=100)
+
+    city = models.CharField(max_length=100)
+
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.name}, {self.city}"
+
+
+
+
+class Officer(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    department = models.ForeignKey(Department, on_delete=models.CASCADE)
+    area = models.ForeignKey(Area, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.user.username
+
 
 
 class Complaint(models.Model):
@@ -35,14 +70,43 @@ class Complaint(models.Model):
         ('Medium', 'Medium'),
         ('High', 'High'),
     ]
+    # -----------------------------
+    # COMPLAINT PHOTO
+    # -----------------------------
+    complaint_photo = models.ImageField(
+        upload_to="complaints/",
+        null=True,
+        blank=True
+    )
+
 
     # -----------------------------
     # CITIZEN INFORMATION
     # -----------------------------
     name = models.CharField(max_length=100)
     phone = models.CharField(max_length=15)
-    area = models.CharField(max_length=100)
+    area = models.ForeignKey(
+    Area,
+    on_delete=models.CASCADE
+)
+    
+   # -----------------------------
+   # DEPARTMENT ROUTING
+   # -----------------------------
+    department = models.ForeignKey(
+    Department,
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True
+)
 
+    assigned_officer = models.ForeignKey(
+    Officer,
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    related_name="complaints"
+)
     # -----------------------------
     # COMPLAINT DETAILS
     # -----------------------------
@@ -170,3 +234,33 @@ class Complaint(models.Model):
     # -----------------------------
     def __str__(self):
         return f"{self.name} - {self.category} - {self.status}"
+    
+
+    
+# ==================================
+# COMPLAINT HISTORY (AUDIT TRAIL)
+# ==================================
+    
+class ComplaintHistory(models.Model):
+
+     complaint = models.ForeignKey(
+        Complaint,
+        on_delete=models.CASCADE,
+        related_name="history"
+    )
+
+     status = models.CharField(max_length=50)
+
+     note = models.TextField(blank=True, null=True)
+
+     updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+     created_at = models.DateTimeField(auto_now_add=True)
+
+     def __str__(self):
+        return f"{self.complaint.id} - {self.status}"
