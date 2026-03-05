@@ -140,8 +140,13 @@ Built for **India Innovates 2026 Hackathon**
 
 ---
 
-## 👨‍💻 Author
+## 👨‍💻 Team members
 
-**Asif**
+**Asif** - Backend Developer
+**Manshi** - Frontend Developer
+**Rafe** - Database Developer
+**Aveeshi** - Presentation/ Research
+**Joydeep** - UI/UX Design and research
+**Sakshi** - Presentation/ Research
 
 ---
