@@ -1,696 +1,871 @@
-{% extends "complaints/base.html" %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>JanConnect AI - Smart Governance CRM</title>
 
-{% block title %}Dashboard{% endblock %}
-{% block page_title %}Dashboard Overview{% endblock %}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-{% block extra_css %}
+    <style>
+        .badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge.pending {
+            background: #fff7ed;
+            color: #ea580c;
+        }
+        .badge.resolved {
+            background: #ecffd5;
+            color: #059669;
+        }
+    </style>
 
-<style>
-    /* TOOL CARD LINKS */
+    <style>
+        :root { 
+            --primary: #2563eb; --primary-light: #eff6ff;
+            --bg: #f8fafc; --card: #ffffff; 
+            --text: #1e293b; --text-light: #64748b;
+            --danger: #ef4444; --success: #10b981; --warning: #f59e0b; 
+        }
+        #selectMap{
+            height: 400px;
+            width: 100%;
+            background: #e5e7eb;
+             border-radius: 10px;
+        }
 
-.card-link{
-color:black;
-font-weight:600;
-text-decoration:none;
-transition:all .25s ease;
+        body { margin:0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); }
+        .dashboard { display: flex; min-height: 100vh; width: 100% }
+
+        /* Sidebar Navigation */
+        .sidebar { width: 260px; background: white; padding: 30px 20px; border-right: 1px solid #e2e8f0; position: sticky; top: 0; height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; }
+        .sidebar h2 { color: var(--primary); font-size: 1.6rem; margin-bottom: 20px; font-weight: 800; letter-spacing: -1px; }
+        .nav-item { display: flex; align-items: center; padding: 12px 16px; border-radius: 10px; text-decoration: none; color: var(--text-light); margin-bottom: 8px; cursor: pointer; transition: 0.3s; font-weight: 500; font-size: 14px; }
+        .nav-item:hover, .nav-item.active { background: var(--primary-light); color: var(--primary); }
+        
+        /* Search Box */
+        .search-box { width: 100%; padding: 10px 12px; margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: 'Inter', sans-serif; box-sizing: border-box; font-size: 13px; outline: none; transition: 0.2s;}
+        .search-box:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+
+        /* Bottom Sidebar Options */
+        .sidebar-bottom { margin-top: auto; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+        .btn-logout { width: 100%; text-align: left; background: none; border: none; font-family: inherit; font-size: 14px; }
+
+        /* Content Area */
+        .main { flex: 1; padding: 40px; overflow-y: auto; }
+        .section { display: none; animation: slideUp 0.4s ease-out; }
+        .section.active { display: block; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Components */
+        .card { background: var(--card); padding: 24px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 24px; border: 1px solid #f1f5f9;overflow:hidden;width: 100%; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr);width: 100%; gap: 20px; margin-bottom: 30px;align-items: start; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; border-left: 4px solid var(--primary); box-shadow: 0 2px 10px rgba(0,0,0,0.02);height: auto;min-height: 110px;display: flex;flex-direction: column;justify-content: center; }
+        .stat-card small { color: var(--text-light); font-weight: 600; text-transform: uppercase; font-size: 11px; }
+        
+        .btn { background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .btn:hover { background: #1d4ed8; transform: translateY(-1px); }
+
+        /* Table & Badges */
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px; color: var(--text-light); font-size: 12px; border-bottom: 2px solid #f1f5f9; }
+        td { padding: 16px 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+        .badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+        .Pending { background: #fef3c7; color: #92400e; }
+        .Resolved { background: #dcfce7; color: #166534; }
+        .ai-label { background: var(--primary-light); color: var(--primary); padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; }
+
+        /* AI Features */
+        #aiStatus { font-size: 12px; font-weight: bold; color: var(--primary); margin-top: 8px; display: block; }
+        .workload-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
+        .low { background: var(--success); }
+        .med { background: var(--warning); }
+        .high { background: var(--danger); }
+
+        /* Maps */
+        .map-container { height: 400px; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+        /* Modal */
+        #feedbackModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:100; align-items:center; justify-content:center; }
+
+        /* HERO BUTTON */
+.hero-btn {
+    background: linear-gradient(135deg, #2563eb, #1e3a8a);
+    color: white;
+    font-size: 16px;
+    padding: 16px 32px;
+    border-radius: 16px;
+    font-weight: 700;
+    border: none;
+    cursor:pointer;
+    box-shadow: 0 12px 30px rgba(37, 99, 235, 0.5);
+    transition: all 0.3 ease;
+    animation: pulseGlow 2s infinite;
 }
 
-.card-link:hover{
-background:black;
-color:white;
-padding:6px 14px;
-border-radius:20px;
+/* Gradient + Glow */
+.report-btn {
+    background: linear-gradient(135deg, #2563eb, #1e3a8a);
+    color: white;
+    text-decoration: none;
+    box-shadow: 0 10px 30px rgba(37, 99, 235, 0.5);
+    transition: all 0.3s ease;
 }
 
-.tool-card{
-padding:25px;
-border-radius:16px;
-transition:all .25s ease;
-cursor:pointer;
+/* Hover effect */
+.report-btn:hover {
+    transform: translateY(-5px) scale(1.08);
+    box-shadow: 0 25px 50px rgba(37, 99, 235, 0.8);
 }
 
-.tool-card:hover{
-background:black;
-color:white;
-transform:translateY(-6px);
-box-shadow:0 15px 30px rgba(0,0,0,0.2);
+.hero-section {
+    text-align: center;
+    margin: 20px 0 30px 0;
+}
+.hero-section h2 {
+    font-size: 24px;
+    margin-bottom: 15px;
+    color: #1e293b;
 }
 
-
-/* PAGE FADE */
-
-body{
-background:linear-gradient(120deg,#f5f5f5,#ffffff,#f3f4f6);
-background-size:400% 400%;
-animation:bgMove 18s ease infinite,fadeInPage .6s ease forwards;
-opacity:0;
+.top-bar{
+    text-align: center;
 }
 
-@keyframes bgMove{
-0%{background-position:0% 50%;}
-50%{background-position:100% 50%;}
-100%{background-position:0% 50%;}
-}
-
-@keyframes fadeInPage{
-to{opacity:1;}
-}
-
-/* GLASS */
-
-.glass{
-background:rgba(255,255,255,.65);
-backdrop-filter:blur(12px);
-border:1px solid rgba(255,255,255,.4);
-box-shadow:0 10px 30px rgba(0,0,0,.08);
-}
-/* ================= BUTTON ANIMATION ================= */
-
-button,
-.hero-btn,
-.start-btn,
-.complaint-btn,
-.card-link{
-transition:all .25s ease;
-cursor:pointer;
-}
-
-button:hover,
-.hero-btn:hover,
-.start-btn:hover,
-.complaint-btn:hover{
-background:black !important;
-color:white !important;
-transform:translateY(-2px);
-box-shadow:0 10px 20px rgba(0,0,0,.18);
-}
-
-button:active,
-.hero-btn:active,
-.start-btn:active,
-.complaint-btn:active{
-transform:scale(.95);
-}
-/* TOP BAR */
-
-.top-glass-bar{
-display:flex;
-justify-content:space-between;
-align-items:center;
-padding:12px 25px;
-margin-bottom:30px;
-border-radius:14px;
-}
-
-.profile-section{
-display:flex;
-align-items:center;
-gap:12px;
-}
-
-.profile-avatar{
-width:36px;
-height:36px;
-border-radius:50%;
-background:#3b82f6;
-color:white;
-display:flex;
-align-items:center;
-justify-content:center;
-font-weight:600;
-}
-
-.notification{
-position:relative;
-font-size:18px;
-cursor:pointer;
-}
-
-.notification span{
-position:absolute;
-top:-6px;
-right:-6px;
-background:red;
-color:white;
-font-size:10px;
-padding:2px 5px;
-border-radius:50%;
-}
-
-.start-btn{
-padding:9px 18px;
-border-radius:8px;
-background:#3b82f6;
-color:white;
-text-decoration:none;
-font-weight:600;
-transition:.25s;
-}
-
-.start-btn:hover{
-background:#2563eb;
-}
-
-/* HERO */
-
-.hero-section{
-text-align:center;
-padding:60px 40px;
-border-radius:16px;
-margin-bottom:40px;
-}
-
-.hero-section h1{
-font-size:40px;
-margin-bottom:10px;
-}
-
-.hero-section p{
-color:#6b7280;
-max-width:600px;
-margin:auto;
-margin-bottom:25px;
-}
-
-.hero-buttons{
-display:flex;
-justify-content:center;
-gap:15px;
-}
-
-.hero-btn{
-padding:12px 28px;
-border-radius:8px;
-text-decoration:none;
-font-weight:600;
-}
-
-.hero-btn.primary{
-background:#3b82f6;
-color:white;
-}
-
-.hero-btn.secondary{
-background:white;
-border:1px solid #ddd;
-}
-
-/* TOOL CARDS */
-
-.tools-grid{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-gap:25px;
-margin-bottom:50px;
-}
-
-.tool-card{
-padding:25px;
-border-radius:14px;
-transition:.25s;
-}
-
-.tool-card:hover{
-transform:translateY(-4px);
-}
-
-.tool-card h3{
-margin-bottom:10px;
-}
-
-.tool-card p{
-color:#6b7280;
-font-size:14px;
-margin-bottom:14px;
-}
-
-.card-link{
-text-decoration:none;
-color:#3b82f6;
-font-weight:600;
-}
-/* PREMIUM SEARCH BAR */
-
-.top-search{
-display:flex;
-justify-content:center;
-margin-bottom:40px;
-}
-
-.search-wrapper{
-position:relative;
-width:65%;
-border-radius:50px;
-overflow:hidden;
-}
-
-.search-wrapper input{
-
-width:100%;
-
-padding:16px 22px 16px 50px;
-
-border-radius:50px;
-
-border:1px solid rgba(0,0,0,0.08);
-
-font-size:15px;
-
-background:white;
-
-box-shadow:
-0 10px 25px rgba(0,0,0,0.08);
-
-transition:all .25s ease;
+.top-bar{
+    display:flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
 
 }
-
-.search-wrapper i{
-
-position:absolute;
-
-left:18px;
-
-top:50%;
-
-transform:translateY(-50%);
-
-font-size:14px;
-
-color:#6b7280;
-
+.tile {
+    margin: 0;
 }
 
-.search-wrapper input:focus{
-
-outline:none;
-
-border-color:black;
-
-box-shadow:
-0 12px 30px rgba(0,0,0,0.15);
-
-transform:scale(1.01);
-
+.tagline{
+    flex: 1;
+    text-align: center;
+    margin: 0;
+}
+/* 🔥 PULSE ANIMATION */
+@keyframes pulseGlow {
+    0% {
+        box-shadow: 0 0 0 rgba(37, 99, 235, 0.6);
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(37, 99, 235, 1);
+    }
+    100% {
+        box-shadow: 0 0 0 rgba(37, 99, 235, 0.6);
+    }
 }
 
-/* icon */
-
-.search-wrapper i{
-
-position:absolute;
-
-left:18px;
-
-top:50%;
-
-transform:translateY(-50%);
-
-font-size:14px;
-
-color:#6b7280;
-
+/* Apply animation */
+.hero-btn {
+    animation: pulseGlow 2s infinite;
+    white-space: nowrap;
 }
 
-/* focus animation */
-
-.search-wrapper input:focus{
-
-outline:none;
-
-border-color:#3b82f6;
-
-box-shadow:
-0 12px 25px rgba(0,0,0,0.1),
-0 0 0 3px rgba(59,130,246,0.15);
-
-transform:scale(1.01);
-
+.chart-box{
+    position:relative;
+    height:300px;
+    width:100%;
+}
+canvas{
+    max-height: 300px !important;
+    width: 100% !important;
 }
 
-/* STATS */
+    </style>
+</head>
+<body>
 
-.stats{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-gap:20px;
-margin-bottom:40px;
-}
+<div class="dashboard">
 
-.card{
-background:rgba(255,255,255,.85);
-padding:25px;
-border-radius:14px;
-box-shadow:0 6px 18px rgba(0,0,0,.08);
-transition:.3s;
-}
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <h2>JanConnect</h2>
 
-.card:hover{
-transform:translateY(-4px);
-}
+        <input type="text" id="globalSearch" class="search-box"
+        placeholder="Search complaints, IDs..." onkeyup="searchComplaints()">
 
-/* CHARTS */
+        <div class="nav-item active" onclick="showTab('dashboard')">Dashboard</div>
+        <div class="nav-item" onclick="showTab('submit')">Submit Complaint</div>
+        <div class="nav-item" onclick="showTab('heatmap')">Hotspot Analysis</div>
+        <div class="nav-item" onclick="showTab('analytics')">AI Analytics</div>
+        <div class="nav-item" onclick="showTab('officers')">Officer Dispatch</div>
 
-.chart-grid{
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:20px;
-margin-bottom:40px;
-}
+        <div class="sidebar-bottom">
+            <a href="{% url 'profile' %}" class="nav-item">👤 Profile Settings</a>
+            <form action="{% url 'logout' %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="nav-item btn-logout">🚪 Logout</button>
+            </form>
+        </div>
+    </div>
 
-/* CONTROL BAR */
+    <!-- MAIN -->
+    <div class="main">
 
-.controls{
-padding:15px 20px;
-border-radius:12px;
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:25px;
-}
+        {% csrf_token %}
 
-.controls select{
-padding:10px 15px;
-border-radius:8px;
-border:1px solid #ddd;
-}
+        <!-- DASHBOARD TAB -->
+        <div id="dashboard" class="section active">
 
-.complaint-btn{
-background:#10b981;
-color:white;
-padding:10px 18px;
-border-radius:8px;
-text-decoration:none;
-font-weight:600;
-}
+            <!-- TOP BAR -->
+            <div class="top-bar">
+                <h1 class="title">City Dashboard</h1>
+                <h2 class="tagline">Make Your City Better 🚀</h2>
+                <a class="hero-btn" onclick="showTab('submit')">
+                    🚨 Report Issue Now
+                </a>
+            </div>
 
-/* TABLE */
+            <!-- ✅ STATS INSIDE -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <small>Live Complaints</small>
+                    <h2 id="stat-total">0</h2>
+                </div>
 
-table{
-width:100%;
-border-collapse:collapse;
-background:white;
-border-radius:12px;
-overflow:hidden;
-box-shadow:0 4px 12px rgba(0,0,0,.08);
-}
+                <div class="stat-card" style="border-color: var(--warning)">
+                    <small>Pending</small>
+                    <h2 id="stat-pending">0</h2>
+                </div>
 
-th,td{
-padding:15px;
-}
+                <div class="stat-card" style="border-color: var(--success)">
+                    <small>Avg. Resolution</small>
+                    <h2>4.2 hrs</h2>
+                </div>
 
-th{
-background:#f1f5f9;
-}
+                <div class="stat-card" style="border-color: var(--danger)">
+                    <small>SLA Breached</small>
+                    <h2>0</h2>
+                </div>
+            </div>
 
-tbody tr:hover{
-background:#eef2ff;
-}
+            <!-- ✅ TABLE INSIDE -->
+            <div class="card">
+                <h3>Live Activity Feed</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Citizen</th>
+                            <th>Category (AI)</th>
+                            <th>Assigned To</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="complaintTable"></tbody>
+                </table>
+            </div>
 
-.badge{
-padding:6px 10px;
-border-radius:20px;
-font-size:12px;
-font-weight:600;
-}
+        </div> <!-- END DASHBOARD -->
 
-.pending{background:#fef3c7;color:#b45309;}
-.resolved{background:#d1fae5;color:#065f46;}
-.escalated{background:#fee2e2;color:#991b1b;}
+        <!-- KEEP YOUR OTHER SECTIONS BELOW SAME -->
 
-</style>
+        <div id="submit" class="section">
+            <h1>Submit Complaint</h1>
+            <div class="grid-2">
+                <div class="card">
+                    <label>Citizen Name</label>
+                    <input type="text" id="citizenName" placeholder="Full Name" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;">
 
-{% endblock %}
+                    <label>Phone Number</label>
+                    <input type="text" id="phone" placeholder="Enter phone number" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;">
 
-{% block content %}
+                    <label>Describe the issue (AI will route this)</label>
+                    <textarea id="description" placeholder="Describe the problem..." style="width:100%; height:120px; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;"></textarea>
+                    <span id="aiStatus">AI Detection: Analyzing context...</span>
 
-<!-- TOP BAR -->
+                    <div style="margin-top:20px;">
+                        <label>Evidence Upload</label><br>
+                        <input type="file" style="margin-top:10px;">
+                    </div>
+                </div>
+                <div class="card">
+                    <label>Tag Geospatial Location</label>
 
-<div class="top-glass-bar glass">
+<div style="margin-top:10px;height:400px;width:100%;overflow:hidden;border-radius:10px;border:1px solid #e5e7eb">
 
-<div class="profile-section">
 
-<div class="profile-avatar">
-{{ request.user.username|first|upper }}
-</div>
-
-<span>{{ request.user.username }}</span>
-
-<div class="notification">
-🔔 <span>3</span>
-</div>
+    <div id="selectMap" style="height:400px;width:100%; border-radius:10px;"></div>
 
 </div>
 
-<a href="{% url 'login' %}" class="start-btn page-link">
-Get Started
-</a>
+<button onclick="processSubmission()" 
+class ="btn" style="width:100%; margin-top:20px; background:#2563eb; color:white; padding:10px; border:none; border-radius:8px;">
+Submit AI-Verified Report
+</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="heatmap" class="section">
+            <h1>Geospatial Hotspots</h1>
+            <div class="card">
+                <p>Real-time visual density of city complaints. Concentrated areas indicate infrastructure failure.</p>
+                <div id="heatMap" class="map-container" style="height:500px;"></div>
+            </div>
+        </div>
+
+        <div id="officers" class="section">
+            <h1>Officer Dispatch Console</h1>
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Field Strength</h3>
+                    <table>
+                        <thead>
+                            <tr><th>Officer</th><th>Department</th><th>Workload</th><th>Status</th></tr>
+                        </thead>
+                        <tbody id="officerTable"></tbody>
+                    </table>
+                </div>
+                <div class="card">
+                    <h3>Automated Assignment Log</h3>
+                    <div id="assignmentLog" style="font-size:12px; color:var(--text-light); line-height:1.6;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="analytics" class="section">
+            <h1>AI Performance Metrics</h1>
+            <div class="grid-2">
+
+    <div class="card">
+        <h3>Departmental Load</h3>
+        <div style="height:300px; position:relative;">
+            <canvas id="chartDept"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>AI Categorization Accuracy</h3>
+        <div style="height:300px; position:relative;">
+            <canvas id="chartAccuracy"></canvas>
+        </div>
+    </div>
 
 </div>
 
-<!-- HERO -->
-
-<div class="hero-section glass">
-
-<h1>JanConnect</h1>
-
-<p>
-Connecting citizens with government departments to report,
-track and resolve civic issues transparently.
-</p>
-
-<div class="hero-buttons">
-
-<a href="{% url 'login' %}" class="hero-btn primary">
-Login
-</a>
-
-<a href="{% url 'login' %}#register" class="hero-btn secondary">
-Register
-</a>
-
+    </div>
 </div>
 
+<div id="feedbackModal">
+    <div class="card" style="width:400px; text-align:center;">
+        <h3>Rate Resolution</h3>
+        <p>How would you rate the officer's work?</p>
+        <div style="font-size:30px; cursor:pointer; margin:20px 0;">⭐⭐⭐⭐⭐</div>
+        <button class="btn" onclick="closeFeedback()">Submit Feedback</button>
+    </div>
 </div>
-
-<!-- TOOL CARDS -->
-
-<div class="tools-grid">
-
-<div class="tool-card glass">
-<h3>Submit Complaint</h3>
-<p>Report civic problems directly to authorities.</p>
-<a href="{% url 'add_page' %}" class="card-link">Open</a>
-</div>
-
-<div class="tool-card glass">
-<h3>Heatmap</h3>
-<p>See complaint density across different areas.</p>
-<a href="#" class="card-link">View</a>
-</div>
-
-<div class="tool-card glass">
-<h3>Analytics</h3>
-<p>Analyze complaint trends and resolution rate.</p>
-<a href="#" class="card-link">Open</a>
-</div>
-
-<div class="tool-card glass">
-<h3>Officers</h3>
-<p>Monitor officer assignments and performance.</p>
-<a href="#" class="card-link">View</a>
-</div>
-
-</div>
-
-<!-- SEARCH -->
-
-<div class="top-search">
-
-<div class="search-wrapper glass">
-
-<i class="fa fa-search"></i>
-
-<input type="text" id="searchInput"
-placeholder="Search complaints, areas or names...">
-
-</div>
-
-</div>
-
-<!-- STATS -->
-
-<div class="stats">
-
-<div class="card">
-<h3>{{ total }}</h3>
-<p>Total Complaints</p>
-</div>
-
-<div class="card">
-<h3>{{ pending }}</h3>
-<p>Pending</p>
-</div>
-
-<div class="card">
-<h3>{{ resolved }}</h3>
-<p>Resolved</p>
-</div>
-
-<div class="card">
-<h3>{{ escalated }}</h3>
-<p>Escalated</p>
-</div>
-
-</div>
-
-<!-- CHARTS -->
-
-<div class="chart-grid">
-
-<div class="card">
-<h4>Status Distribution</h4>
-<canvas id="statusChart"></canvas>
-</div>
-
-<div class="card">
-<h4>Complaints Over Time</h4>
-<canvas id="lineChart"></canvas>
-</div>
-
-</div>
-
-<!-- CONTROLS -->
-
-<div class="controls glass">
-
-<select onchange="filterStatus(this.value)">
-<option {% if selected_status == "All" %}selected{% endif %}>All</option>
-<option {% if selected_status == "Pending" %}selected{% endif %}>Pending</option>
-<option {% if selected_status == "Resolved" %}selected{% endif %}>Resolved</option>
-<option {% if selected_status == "Escalated" %}selected{% endif %}>Escalated</option>
-</select>
-
-<a href="{% url 'add_page' %}" class="complaint-btn">
-+ Add Complaint
-</a>
-
-</div>
-
-<!-- TABLE -->
-
-<table>
-
-<thead>
-<tr>
-<th>Name</th>
-<th>Area</th>
-<th>Status</th>
-<th>Date</th>
-</tr>
-</thead>
-
-<tbody>
-
-{% for complaint in complaints %}
-
-<tr>
-<td>{{ complaint.name }}</td>
-<td>{{ complaint.area }}</td>
-
-<td>
-<span class="badge
-{% if complaint.status == 'Pending' %}pending
-{% elif complaint.status == 'Resolved' %}resolved
-{% elif complaint.status == 'Escalated' %}escalated
-{% endif %}">
-{{ complaint.status }}
-</span>
-</td>
-
-<td>{{ complaint.created_at|date:"M d, Y" }}</td>
-
-</tr>
-
-{% empty %}
-
-<tr>
-<td colspan="4">No complaints found.</td>
-</tr>
-
-{% endfor %}
-
-</tbody>
-
-</table>
-
-{% endblock %}
-
-{% block extra_js %}
 
 <script>
+function updateStats(data){
+    console.log("Updating status:", data);
 
-function filterStatus(status){
-window.location.href="?status="+status;
+
+    document.getElementById('stat-total').innerText = data.length;
+
+    let pending = data.filter(c => c.status === "Pending").length;
+    document.getElementById('stat-pending').innerText = pending;
+
+}
+   // ================= LOAD COMPLAINTS FROM DJANGO =================
+let complaints = [];
+function loadComplaints(){
+    fetch("/api/complaints/")
+        .then(response => response.json())
+        .then(data => {
+
+            console.log("Loaded complaints:", data);
+
+            complaints = data.complaints || data;
+
+            if(!Array.isArray(complaints)){
+                console.error("Invalid data:", complaints);
+                return;
+            }
+            updateUI(complaints);
+
+            const table = document.getElementById('complaintTable');
+
+            table.innerHTML = complaints.map((c, index) => {
+                return `
+            <tr>
+                <td>#${index + 1}</td>
+                <td><b>${c.name || c.citizen}</b></td>
+                <td><span class="ai-label">${c.category || "Other"}</span></td>
+                <td>${c.assigned_officer || "Not Assigned"}</td>
+                <td><span class="badge ${c.status?.toLowerCase()}">${c.status}</span></td>
+                <td>
+                    <button onclick="confirmComplaint(${c.id})" 
+                    style="border:none;background:none;color:#2563eb;cursor:pointer;">
+                        Manage
+                    </button>
+                </td>
+            </tr>
+            `;
+            }).join('');
+})
+.catch(err => {
+
+ console.error("Error loading complaints:", err)
+});
+document.addEventListener("DOMContentLoaded", function(){
+    loadComplaints();
+    setInterval(loadComplaints, 5000);
+});
+
 }
 
-const statusData=JSON.parse('{{ status_data|escapejs }}');
-const lineDates=JSON.parse('{{ chart_dates|escapejs }}');
-const lineCounts=JSON.parse('{{ chart_counts|escapejs }}');
+    // --- Search Logic ---
+    function searchComplaints() {
+        let input = document.getElementById('globalSearch').value.toLowerCase();
+        let rows = document.querySelectorAll('#complaintTable tr');
+        
+        rows.forEach(row => {
+            let text = row.innerText.toLowerCase();
+            row.style.display = text.includes(input) ? '' : 'none';
+        });
 
-new Chart(document.getElementById('statusChart'),{
-type:'doughnut',
-data:{
-labels:['Pending','Resolved','Escalated'],
-datasets:[{
-data:statusData,
-backgroundColor:['#fbbf24','#10b981','#ef4444']
-}]
+        // Switch to dashboard tab if searching
+        if(input.length > 0 && !document.getElementById('dashboard').classList.contains('active')) {
+            showTab('dashboard');
+        }
+    }
+
+    // --- Tab Logic ---
+    function showTab(tabId) {
+
+    // Hide all sections
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+
+    // Remove active from sidebar
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+    // Show selected section
+    document.getElementById(tabId).classList.add('active');
+
+    // Highlight sidebar
+    document.querySelector(`.nav-item[onclick="showTab('${tabId}')"]`)?.classList.add('active');
+
+
+    // 🔥 SUBMIT MAP FIX
+    if(tabId === 'submit'){
+        initSelectMap();
+
+        setTimeout(() => {
+            if (selectMap) {
+                selectMap.invalidateSize();
+            }
+        }, 300);
+    }
+
+    // 🔥 HEATMAP FIX
+    if(tabId === 'heatmap'){
+        initHeatmap();
+
+        setTimeout(() => { 
+            if (heatMap) {
+                heatMap.invalidateSize();
+            } 
+        }, 300);
+    }
+
+    // 🔥 FINAL FIX (THIS WAS MISSING)
+    if(tabId === 'analytics'){
+        setTimeout(() => {
+            initCharts();
+        }, 200);
+    }
 }
-});
 
-new Chart(document.getElementById('lineChart'),{
-type:'line',
-data:{
-labels:lineDates,
-datasets:[{
-label:'Complaints',
-data:lineCounts,
-borderColor:'#3b82f6',
-fill:false
-}]
+
+
+    function updateUI(complaints) {
+        // Stats
+        document.getElementById('stat-total').innerText = complaints.length;
+        document.getElementById('stat-pending').innerText = complaints.filter(c => c.status === "Pending").length;
+
+        // Heatmap Update
+        if (heatLayer){
+            heatLayer.setLatLngs(complaints.map(c => [c.lat, c.lng, 0.7]));
+        }
+    }
+
+    function openFeedback() { document.getElementById('feedbackModal').style.display = 'flex'; }
+    function closeFeedback() { document.getElementById('feedbackModal').style.display = 'none'; }
+
+    // --- Init Maps --- //
+   let selectedPos = null;
+   let selectMap;
+   let marker;
+
+   let heatMap;
+   let heatLayer;
+
+   function initSelectMap(){
+        
+       const container = document.getElementById('selectMap');
+
+       if (selectMap) return;
+
+       selectMap = L.map('selectMap').setView([28.6139, 77.2090], 13);
+
+       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(selectMap);
+
+       fetch("/api/complaints/")
+        .then(response => response.json())
+        .then(data => {
+            data.forEach(c => {
+                if(c.lat && c.lng){
+                    L.marker([c.lat, c.lng])
+                    .addTo(selectMap)
+                    .bindPopup(`<b>${c.name}</b><br>${c.description}`);
+                }
+            });
+        });
+
+       selectMap.on('click', function(e) {
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${e.latlng.lat}&lon=${e.latlng.lng}`)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById("address").value = data.display_name;
+        });
+           if (marker) { 
+           selectMap.removeLayer(marker);
+           }
+           marker = L.marker(e.latlng).addTo(selectMap);
+           selectedPos = e.latlng;
+
+           console.log("Selected:", selectedPos);
+        });
+    }  
+
+    function initHeatmap(){
+
+        const container = document.getElementById('heatMap');
+
+        if(!container || container.offsetParent === null) return;
+
+        if (heatMap) return;
+
+        heatMap = L.map('heatMap').setView([28.6139, 77.2090], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(heatMap);
+
+        heatLayer = L.heatLayer([], { radius: 25, blur: 15, maxZoom: 17 }).addTo(heatMap);
+
+        fetch("/api/complaints/")
+            .then(response => response.json())
+            .then(data => {
+
+                console.log("DATA", data);
+                let points = [];
+
+                heatMap.eachLayer(layer => {
+                    if (layer instanceof L.CircleMarker) {
+                        heatMap.removeLayer(layer);
+                    }
+                });
+
+                let areaCounts = {};
+
+                data.forEach(c => {
+                    if (!c)  return;
+
+                    if(c.lat === null || c.lng === null) return;
+
+                    if(c.lat === undefined || c.lng === undefined) return;
+
+                    let  lat = parseFloat(c.lat);
+                    let  lng = parseFloat(c.lng);
+
+                    if(!isNaN(lat) || isNaN(lng)) return;
+
+                    L.circleMaker([lat, lng], {
+                        radius: 6,
+                        fillColor: c.status === "Pending" ?"ff9800" : "#28a745",
+                        color: "#fff",
+                        weight: 1,
+                        opacity: 1,
+                        fillOptacity: 0.8
+
+                    }).addTo(map)
+                    .bindPopup(`
+                         <b>${c.name}</b><br>
+                         ${c.description}<br>
+                         Status: ${c.status}
+                    `);
+
+                        if (!areaCounts[c.area]) {
+                            areaCounts[c.area] = {
+                               count: 0,
+                               lat: lat,
+                               lng: lng
+                        };
+                    }
+
+                    areaCounts[c.area].count +=1;
+                }
+            );
+
+            Object.keys(areaCounts).forEach(area => {
+                let h = areaCounts[area];
+
+                let color = "green";
+                let radius = 100;
+
+                if(h.count>5){
+                    color = "red";
+                    radius = 300;
+                }else if(h.count>2){
+                    color = "Yellow"
+                }
+
+                L.circle([h.lat, h.lng], {
+                    color: color,
+                    fillColor: color,
+                    fillOptacity: 0.5,
+                    radius: radius
+                }).addTo(heatMap)
+                .bindpopup(`<b>${area}</b><br>Complaints: ${h.count}`)
+
+                points.push([h.lat, h.lng, h.count]);
+
+            });
+
+            heatLayer.setLatLngs(points);
+    });
 }
+    // --- Init Charts ---
+let deptChart, accuracyChart;
+
+function initCharts(){
+
+    console.log("🔥 initCharts called");
+
+    if(deptChart) return; // prevent duplicate
+
+    const deptCanvas = document.getElementById('chartDept');
+    const accCanvas = document.getElementById('chartAccuracy');
+
+    if(!deptCanvas || !accCanvas){
+        console.error("❌ Canvas not found");
+        return;
+    }
+
+    deptChart = new Chart(deptCanvas, {
+        type: 'bar',
+        data: {
+            labels: ['Water', 'Power', 'Waste', 'Roads'],
+            datasets: [{
+                label: 'Complaints',
+                data: [12, 19, 8, 5],
+                backgroundColor: '#2563eb'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+
+    accuracyChart = new Chart(accCanvas, {
+        type: 'line',
+        data: {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu'],
+            datasets: [{
+                label: 'AI Prediction Accuracy %',
+                data: [88, 92, 91, 95],
+                borderColor: '#10b981',
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initSelectMap();
+    initHeatmap();
+
+
+    loadComplaints();
+setInterval(loadComplaints,5000);
+setInterval(() => {
+    if (selectMap) selectMap.invalidateSize();
+    if (heatMap) heatMap.invalidateSize();
+}, 5000);
 });
 
-document.getElementById("searchInput")
-.addEventListener("keyup",function(){
 
-let filter=this.value.toLowerCase();
-let rows=document.querySelectorAll("tbody tr");
+// CALL FUNCTION
+loadComplaints();
+setInterval(loadComplaints, 5000); // Refresh every 5 seconds
 
-rows.forEach(row=>{
-row.style.display=row.innerText.toLowerCase().includes(filter)?"":"none";
+function processSubmission(){
+    console.log("Button Clicked");
+    const description = document.getElementById("description").value;
+
+    let text = description.toLowerCase();
+    let dept = "General";
+
+if(text.includes("pothole") || text.includes("road")){
+dept = "Roads";
+}
+
+else if(text.includes("water") || text.includes("leak") || text.includes("pipe")){
+    dept = "Water";
+}
+
+else if(text.includes("power") || text.includes("electricity") || text.includes("light")){
+    dept = "Electricity";
+}
+else if(text.includes("garbage") || text.includes("waste") || text.includes("trash")){
+    dept = "Sanitation";
+}
+document.getElementById('aiStatus').innerHTML = "AI CLassification: <span style='color:#2563eb'> " + dept + " </span>";
+    
+let name = document.getElementById("citizenName").value;
+let phone = document.getElementById("phone").value;
+
+if(!selectedPos) {
+    alert("Click on map first 📍");
+    return;
+}
+
+
+
+if(name === "" || description === "" ){
+alert("⚠️Please fill all fields.");
+return;
+}
+
+const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+let formData = new FormData();
+
+
+formData.append("name",name);
+formData.append("phone",phone);
+formData.append("description",description);
+formData.append("area",1);  // default area id (change later)
+formData.append("lat", selectedPos.lat);
+formData.append("lng", selectedPos.lng);
+
+
+console.log("Submitting complaint:", {name, description, dept});
+fetch("/api/add/", {
+method:"POST",
+headers:{
+"X-CSRFToken":csrfToken
+},
+body:formData
+})
+.then(res=> {
+     if(!res.ok){
+         throw new Error("Server error: " + res.status);
+    }
+    return res.json();
+})
+
+.then(data => {
+    console.log("SERVER RESPONSE:", data);
+
+    if (selectedPos){
+        L.marker([selectedPos.lat, selectedPos.lng])
+        .addTo(selectMap)
+        .bindPopup("Complaint Submitted ✅")
+        .openPopup();
+    }
+
+document.getElementById('citizenName').value="";
+document.getElementById('description').value="";
+document.getElementById("phone").value="";
+
+showTab('dashboard');
+
+// Success message
+alert("✅ Complaint submitted successfully!\n\nID: JC-" + Math.floor(Math.random()*9000 + 1000) + "\nDepartment: " + dept);
+
+loadComplaints();
+
+})
+.catch(err => {
+console.error("Error:", err);
+alert("❌ " + err.message);
 });
 
-});
+}
 
-/* BUTTON CLICK EFFECT */
+function confirmComplaint(id){
 
-document.querySelectorAll("button, a")
-.forEach(btn=>{
+    const selected = complaints.find(c => c.id === id);
 
-btn.addEventListener("click",function(){
+    if(!selected){
+        alert("❌ Complaint not found");
+        return;
+    }
 
-this.style.transform="scale(.96)";
+    // 🔥 STEP 1: UPDATE UI INSTANTLY
+    selected.status = "Resolved";
 
-setTimeout(()=>{
-this.style.transform="scale(1)";
-},150);
+    updateUI(complaints);
+    loadComplaints();
 
-});
+    // 🔥 STEP 2: ADD LOG (KEEP YOUR FEATURE)
+    const log = document.getElementById('assignmentLog');
 
-});
+    log.innerHTML = `
+    <p><b>[ACTION]</b> ${new Date().toLocaleTimeString()}: 
+    ${selected.department?.name || "General"} issue resolved by 
+    ${selected.assigned_officer?.user?.username || selected.assigned_officer?.name || "Officer"}
+    </p>
+    ` + log.innerHTML;
+
+    // 🔥 STEP 3: BACKEND CALL (NO RELOAD)
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    fetch(`/confirm/${id}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(res=> res.json())
+    .then(data => {
+        console.log("Server:", data);
+    })
+    .catch(err => {
+        console.error("Error:", err);
+    });
+
+    // 🔥 STEP 4: SUCCESS MESSAGE
+    alert("✅ Complaint marked as Resolved!");
+}
 
 </script>
 
-{% endblock %}
+</body>
+</html>

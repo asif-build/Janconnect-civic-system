@@ -1,15 +1,42 @@
 {% load static %}
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/leaflet.js"></script>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+<style>
+    .leaflet-control-geocoder {
+        width: 250px !important;
+        max-width: 250px;
+    }
+</style>
+
+<style>
+ .leaflet-top.leaflet-left {
+    z-index: 1000;
+ }
+</style>
+
+
 <h2>Submit Complaint</h2>
 <form enctype="multipart/form-data">
     <input type="text" id="name" placeholder="Name">
     <input type="text" id="phone" placeholder="Phone">
+    <input type="text" id="address" placeholder="Auto-detected location" readonly>
     <input type="text" id="area" placeholder="Area">
     <textarea id="description" placeholder="Description"></textarea>
+    <input type="hidden" id="lat" name="lat">
+    <input type="hidden" id="lng" name="lng">
+
+
+    <div id="selectMap" style="height:300px;width:100%; border-radius:10px;"></div>
 </form>
 <input type="file" name="photo" id="photo">
 
-<select id="category">
+<select id="category" required>
+    <option value = "" selected disabled>Choose a category</option>
     <option value="Infrastructure">Infrastructure</option>
     <option value="Healthcare">Healthcare</option>
     <option value="Water & Utilities">Water & Utilities</option>
@@ -19,4 +46,44 @@
 
 <button onclick="submitComplaint()">Submit</button>
 
-<script src="{% static 'complaints/js/main.js' %}"></script>
+<script>
+    var map = L.map('selectMap').setView([28.6139, 77.2090], 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    var marker;
+
+    map.on('click', function(e) {
+        var lat = e.latlng.lat;
+        var lng = e.latlng.lng;
+        if (marker) {
+            map.removeLayer(marker);
+        }
+        marker = L.marker([lat, lng]).addTo(map);
+
+        document.getElementById("lat").value = lat;
+        document.getElementById("lng").value = lng;
+    });
+
+    var geocoder = L.Control.geocoder({
+        defaultMarkGeocode: false
+    }).addTo(map);
+
+    geocoder.on('markgeocode', function(e) {
+        var latlng = e.geocode.center;
+
+        map.setView(latlng, 15);
+
+        if (marker) {
+            map.removeLayer(marker);
+        }
+        marker = L.marker(latlng).addTo(map);
+
+        document.getElementById("lat").value = latlng.lat;
+        document.getElementById("lng").value = latlng.lng;
+        document.getElementById("address").value = e.geocode.name;
+    });
+
+</script>

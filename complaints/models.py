@@ -61,6 +61,7 @@ class Complaint(models.Model):
         ('Sanitation', 'Sanitation'),
         ('Other', 'Other'),
     ]
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='Other')
 
     # -----------------------------
     # PRIORITY OPTIONS
@@ -70,6 +71,9 @@ class Complaint(models.Model):
         ('Medium', 'Medium'),
         ('High', 'High'),
     ]
+    phone = models.CharField(max_length=10)
+    lat = models.FloatField(null=True, blank=True)
+    lng = models.FloatField(null=True, blank=True)
     # -----------------------------
     # COMPLAINT PHOTO
     # -----------------------------
